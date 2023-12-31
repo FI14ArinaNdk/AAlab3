@@ -10,6 +10,40 @@ class HuffmanNode:
 
     def __lt__(self, other):
         return self.freq < other.freq
+    
+
+def ReadBitSequence(file, num_bits):
+    bit_buffer = 0
+    bit_count = 0
+
+    while bit_count < num_bits:
+        if bit_count == 0:
+            byte = file.read(1)
+            if not byte:
+                break  
+            bit_buffer = byte[0]
+
+        current_bit = (bit_buffer >> (7 - bit_count)) & 1
+        bit_count += 1
+        yield current_bit
+
+def WriteBitSequence(file, bit_sequence):
+    bit_buffer = 0
+    bit_count = 0
+
+    for bit in bit_sequence:
+        bit_buffer = (bit_buffer << 1) | bit
+        bit_count += 1
+
+        if bit_count == 8:
+            file.write(bit_buffer.to_bytes(1, byteorder='big'))
+            bit_buffer = 0
+            bit_count = 0
+
+    if bit_count > 0:
+        file.write((bit_buffer << (8 - bit_count)).to_bytes(1, byteorder='big'))
+
+
 
 def build_huffman_tree(frequencies):
     heap = [HuffmanNode(char, freq) for char, freq in enumerate(frequencies) if freq > 0]
@@ -47,18 +81,18 @@ def encode(input_path, output_path):
     build_huffman_codes(root, '', codes)
 
     with open(output_path, 'wb') as output_file, open(input_path, 'rb') as input_file:
-        # Write frequencies table
+        
         for freq in frequencies:
             output_file.write(freq.to_bytes(4, byteorder='big'))
 
-        # Write encoded data
+        
         bit_buffer = 0
         bit_count = 0
         byte = input_file.read(1)
         while byte:
             code = codes[byte[0]]
             for bit in code:
-                bit_buffer = (bit_buffer << 1) | int(bit)
+                bit_buffer = (bit_buffer << 1) | int(bit)  
                 bit_count += 1
                 if bit_count == 8:
                     output_file.write(bit_buffer.to_bytes(1, byteorder='big'))
@@ -66,15 +100,16 @@ def encode(input_path, output_path):
                     bit_count = 0
             byte = input_file.read(1)
 
-        # Write the last byte (if any)
+        
         if bit_count > 0:
             output_file.write((bit_buffer << (8 - bit_count)).to_bytes(1, byteorder='big'))
+
 
 def decode(input_path, output_path):
     frequencies = []
 
     with open(input_path, 'rb') as file:
-        # Read frequencies table
+  
         for _ in range(256):
             freq_bytes = file.read(4)
             freq = int.from_bytes(freq_bytes, byteorder='big')
@@ -86,11 +121,12 @@ def decode(input_path, output_path):
         with open(output_path, 'wb') as output_file:
             byte = file.read(1)
             while byte:
-                bits = '{:08b}'.format(byte[0])
-                for bit in bits:
-                    if bit == '0':
+                for i in range(8):
+                    current_bit = (byte[0] >> (7 - i)) & 1
+
+                    if current_bit == 0:
                         current_node = current_node.left
-                    elif bit == '1':
+                    elif current_bit == 1:
                         current_node = current_node.right
 
                     if current_node.char is not None:
@@ -98,6 +134,7 @@ def decode(input_path, output_path):
                         current_node = root
 
                 byte = file.read(1)
+
 
 if __name__ == '__main__':
     input_file_path = 'input.txt'
